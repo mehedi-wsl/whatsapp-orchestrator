@@ -1,0 +1,648 @@
+{
+  "_doc": [
+    "Routing policy for the Message Notification Router.",
+    "",
+    "This file is the policy. The engine in code/engine.py contains no routing",
+    "knowledge -- it evaluates what is written here and nothing else. Every",
+    "condition names a label defined in code/labels.json.",
+    "",
+    "Two ordered tables, evaluated independently because `action` and",
+    "`message_type` are scored separately: a message can be `urgent` and still",
+    "be held for a digest. In each table the first rule whose conditions all",
+    "hold wins, and its `id` is recorded on the decision, so any output row can",
+    "be traced to the exact rule that produced it.",
+    "",
+    "Condition form: [label, op, value]. Ops: ==, !=, <=, >=, in, not_in.",
+    "Conditions within a rule are ANDed. There is no OR: a policy that needs",
+    "one is two rules, which keeps the table readable and the trace exact.",
+    "",
+    "Ordering is the whole design. Safety precedes personalisation so that a",
+    "user who has engaged with a scam sender before is still not interrupted by",
+    "one. Precedent precedes content because how this user has actually treated",
+    "this sender outranks what the message looks like."
+  ],
+  "version": 4,
+  "action_rules": [
+    {
+      "id": "S0_injection_pattern",
+      "why": "A lexical injection detector, kept because the semantic label for this is produced by a model reading attacker-controlled text. Either detector firing is enough: a model may add a suppression, never remove one.",
+      "when": [
+        [
+          "text_matches_injection_pattern",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "action": "mute",
+        "reason": "injection",
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "S1_injection",
+      "why": "Instructions aimed at the router are never shown to a model and never routed on content.",
+      "when": [
+        [
+          "targets_the_router",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "action": "mute",
+        "reason": "injection",
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "S2_impersonation",
+      "why": "Brand impersonation is structural: a lookalike domain on an unverified, recently created account. No text can argue with an account's age.",
+      "when": [
+        [
+          "is_business",
+          "==",
+          true
+        ],
+        [
+          "sender_domain_mismatch",
+          "==",
+          true
+        ],
+        [
+          "sender_verified",
+          "==",
+          false
+        ],
+        [
+          "sender_account_age_days",
+          "<=",
+          60
+        ]
+      ],
+      "then": {
+        "action": "mute",
+        "reason": "impersonation",
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "S3_credential_request",
+      "why": "A request for OTP, PIN or card details is suppressed unless the sender's identity is independently established.",
+      "when": [
+        [
+          "asks_for_credential",
+          "==",
+          true
+        ],
+        [
+          "sender_structurally_trusted",
+          "==",
+          false
+        ]
+      ],
+      "then": {
+        "action": "mute",
+        "reason": "credential_request",
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "S3b_credential_pattern",
+      "why": "Lexical counterpart to S3, on the same terms, and subject to the same structural-trust exemption so a verified aged sender is not muted for merely mentioning an OTP.",
+      "when": [
+        [
+          "text_matches_credential_pattern",
+          "==",
+          true
+        ],
+        [
+          "sender_structurally_trusted",
+          "==",
+          false
+        ]
+      ],
+      "then": {
+        "action": "mute",
+        "reason": "credential_request",
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "S4_chain_forward",
+      "why": "Chain letters are suppressed on the same terms as credential requests.",
+      "when": [
+        [
+          "instructs_forwarding",
+          "==",
+          true
+        ],
+        [
+          "sender_structurally_trusted",
+          "==",
+          false
+        ]
+      ],
+      "then": {
+        "action": "mute",
+        "reason": "chain",
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "S4b_chain_pattern",
+      "why": "Lexical counterpart to S4.",
+      "when": [
+        [
+          "text_matches_chain_pattern",
+          "==",
+          true
+        ],
+        [
+          "sender_structurally_trusted",
+          "==",
+          false
+        ]
+      ],
+      "then": {
+        "action": "mute",
+        "reason": "chain",
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "U1_opted_out",
+      "why": "An explicit opt-out is a standing instruction from the user and outranks everything below it.",
+      "when": [
+        [
+          "user_opted_out",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "action": "mute",
+        "reason": "opt_out",
+        "strength": 0.95
+      }
+    },
+    {
+      "id": "R1_deadline_needing_reply",
+      "why": "A stated cutoff that also asks something of the recipient is worth an interruption. A deadline that asks nothing is an FYI, which is why requests_response is required here.",
+      "when": [
+        [
+          "states_deadline",
+          "==",
+          true
+        ],
+        [
+          "requests_response",
+          "==",
+          true
+        ],
+        [
+          "is_business",
+          "==",
+          false
+        ],
+        [
+          "precedent_unanimous",
+          "==",
+          false
+        ]
+      ],
+      "then": {
+        "action": "notify",
+        "reason": "deadline",
+        "strength": 0.75
+      }
+    },
+    {
+      "id": "P1_unanimous_precedent",
+      "why": "The strongest measured signal in the dataset: how this user has actually treated this sender, when every prior instance agrees. Unanimous for 79 of 110.",
+      "when": [
+        [
+          "precedent_unanimous",
+          "==",
+          true
+        ],
+        [
+          "precedent_label",
+          "!=",
+          null
+        ]
+      ],
+      "then": {
+        "action": "@precedent_label",
+        "reason": "precedent",
+        "strength": 0.9
+      }
+    },
+    {
+      "id": "P2_mixed_precedent_promote",
+      "why": "History is split, so the message breaks the tie. Being asked for a response promotes it.",
+      "when": [
+        [
+          "precedent_label",
+          "==",
+          "digest"
+        ],
+        [
+          "requests_response",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "action": "notify",
+        "reason": "precedent_notify",
+        "strength": 0.45
+      }
+    },
+    {
+      "id": "P3_mixed_precedent_demote",
+      "why": "The mirror of P2, but suppression needs both signals to agree: the message must ask nothing AND carry no urgency. A model that wrongly reads 'can you come online now' as needing no reply must not be able to silence it alone.",
+      "when": [
+        [
+          "precedent_label",
+          "==",
+          "notify"
+        ],
+        [
+          "requests_response",
+          "==",
+          false
+        ],
+        [
+          "conveys_urgency",
+          "==",
+          false
+        ]
+      ],
+      "then": {
+        "action": "digest",
+        "reason": "precedent_digest",
+        "strength": 0.45
+      }
+    },
+    {
+      "id": "P4_precedent",
+      "why": "Split history with nothing in the message to break the tie: follow the majority.",
+      "when": [
+        [
+          "precedent_label",
+          "!=",
+          null
+        ]
+      ],
+      "then": {
+        "action": "@precedent_label",
+        "reason": "precedent",
+        "strength": 0.45
+      }
+    },
+    {
+      "id": "P5_media_precedent",
+      "why": "The same media file was received before and the user's handling of it is the best guide available.",
+      "when": [
+        [
+          "media_precedent_label",
+          "!=",
+          null
+        ]
+      ],
+      "then": {
+        "action": "@media_precedent_label",
+        "reason": "media_precedent",
+        "strength": 0.7
+      }
+    },
+    {
+      "id": "C1_greeting",
+      "why": "A pleasantry with nothing to act on can wait.",
+      "when": [
+        [
+          "is_greeting",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "action": "digest",
+        "reason": "greeting",
+        "strength": 0.4
+      }
+    },
+    {
+      "id": "C2_advertising_muted_group",
+      "why": "Advertising into a group the user has already muted is unwanted by an explicit prior signal.",
+      "when": [
+        [
+          "is_advertising",
+          "==",
+          true
+        ],
+        [
+          "group_muted",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "action": "mute",
+        "reason": "promotion",
+        "strength": 0.4
+      }
+    },
+    {
+      "id": "C3_advertising",
+      "why": "Commercial content with no relationship signal against it is held, not suppressed.",
+      "when": [
+        [
+          "is_advertising",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "action": "digest",
+        "reason": "promotion",
+        "strength": 0.4
+      }
+    },
+    {
+      "id": "D1_default",
+      "why": "Digest is the recoverable middle: wrong in either direction it costs the user little. Never default to notify.",
+      "when": [],
+      "then": {
+        "action": "digest",
+        "reason": "default",
+        "strength": 0.15
+      }
+    }
+  ],
+  "type_rules": [
+    {
+      "id": "T_injection_pattern",
+      "when": [
+        [
+          "text_matches_injection_pattern",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "scam"
+      }
+    },
+    {
+      "id": "T_injection",
+      "when": [
+        [
+          "targets_the_router",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "scam"
+      }
+    },
+    {
+      "id": "T_impersonation",
+      "when": [
+        [
+          "is_business",
+          "==",
+          true
+        ],
+        [
+          "sender_domain_mismatch",
+          "==",
+          true
+        ],
+        [
+          "sender_verified",
+          "==",
+          false
+        ],
+        [
+          "sender_account_age_days",
+          "<=",
+          60
+        ]
+      ],
+      "then": {
+        "type": "scam"
+      }
+    },
+    {
+      "id": "T_credential",
+      "when": [
+        [
+          "asks_for_credential",
+          "==",
+          true
+        ],
+        [
+          "sender_structurally_trusted",
+          "==",
+          false
+        ]
+      ],
+      "then": {
+        "type": "scam"
+      }
+    },
+    {
+      "id": "T_credential_pattern",
+      "when": [
+        [
+          "text_matches_credential_pattern",
+          "==",
+          true
+        ],
+        [
+          "sender_structurally_trusted",
+          "==",
+          false
+        ]
+      ],
+      "then": {
+        "type": "scam"
+      }
+    },
+    {
+      "id": "T_forward",
+      "when": [
+        [
+          "instructs_forwarding",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "forward"
+      }
+    },
+    {
+      "id": "T_greeting",
+      "when": [
+        [
+          "is_greeting",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "greeting"
+      }
+    },
+    {
+      "id": "T_promotion",
+      "when": [
+        [
+          "is_advertising",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "promotion"
+      },
+      "why": "Commercial intent outranks urgency: a countdown in an advert is a sales device, not a deadline."
+    },
+    {
+      "id": "T_urgent",
+      "when": [
+        [
+          "conveys_urgency",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "urgent"
+      }
+    },
+    {
+      "id": "T_stranger",
+      "when": [
+        [
+          "precedent_n",
+          "==",
+          0
+        ],
+        [
+          "is_business",
+          "==",
+          false
+        ]
+      ],
+      "then": {
+        "type": "unknown"
+      }
+    },
+    {
+      "id": "T_payment",
+      "when": [
+        [
+          "involves_payment",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "payment"
+      }
+    },
+    {
+      "id": "T_event",
+      "when": [
+        [
+          "is_scheduled_event",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "event"
+      },
+      "why": "An occasion the recipient must attend outranks the fact that a company sent it."
+    },
+    {
+      "id": "T_biz_update",
+      "when": [
+        [
+          "is_business",
+          "==",
+          true
+        ],
+        [
+          "concerns_recipients_account",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "business_update"
+      }
+    },
+    {
+      "id": "T_spam",
+      "when": [
+        [
+          "is_business",
+          "==",
+          true
+        ],
+        [
+          "user_opted_out",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "spam"
+      },
+      "why": "A business the user opted out of, with no offer and nothing about their account."
+    },
+    {
+      "id": "T_biz_other",
+      "when": [
+        [
+          "is_business",
+          "==",
+          true
+        ]
+      ],
+      "then": {
+        "type": "business_update"
+      },
+      "why": "Default for business senders: reporting, not selling."
+    },
+    {
+      "id": "T_personal",
+      "when": [
+        [
+          "conversation_type",
+          "in",
+          [
+            "personal",
+            "group"
+          ]
+        ]
+      ],
+      "then": {
+        "type": "personal"
+      }
+    },
+    {
+      "id": "T_default",
+      "when": [],
+      "then": {
+        "type": "unknown"
+      }
+    }
+  ]
+}

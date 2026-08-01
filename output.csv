@@ -1,0 +1,111 @@
+message_id,action,message_type,reason,confidence,evidence_message_ids
+msg_023,digest,business_update,"This is a routine business alert about an account or card update with no urgent action required, matching how the user typically engages with this sender.",0.81,message_0243
+msg_091,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,message_0238
+msg_090,digest,unknown,"The sender is unfamiliar and unverified, but the message explicitly states no urgency, warranting later review instead of immediate delivery.",0.79,message_0339
+msg_048,mute,urgent,"This is a pressure-tactic message from a routinely dismissed society sender, using urgency and a QR payment to push immediate, unverified action.",0.86,message_0151
+msg_040,mute,forward,The message is a chain forward asking the user to propagate it further.,0.87,message_0136
+msg_075,notify,urgent,"This is a time-sensitive ride status change requiring prompt attention, and the user typically engages with this sender's messages quickly.",0.90,message_0205
+msg_005,notify,urgent,"This is a time-sensitive marketplace hold with a firm 6 PM deadline, from a sender the user typically answers quickly.",0.90,message_0065
+msg_104,mute,urgent,"This time-sensitive pickup request has a real deadline and consequence, but comes from a sender the user consistently ignores unread.",0.86,message_0224
+msg_069,mute,forward,The message is a chain forward asking the user to propagate it further.,0.87,message_0080
+msg_107,mute,scam,The message contains instructions aimed at the routing system rather than the user.,0.87,message_0056
+msg_070,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,message_0369
+msg_003,notify,business_update,"This is a routine shipping update from a business the user engages with promptly, warranting immediate delivery despite lacking true urgency.",0.90,message_0400
+msg_099,digest,personal,"This is a non-blocking heads-up with a soft deadline before an 11 AM standup, so it can safely wait until morning.",0.81,message_0227
+msg_008,digest,business_update,"This is a routine review request from a business account with no time sensitivity, matching a pattern the user typically reads later without acting on it.",0.83,message_0296
+msg_092,digest,payment,"This is a routine monthly statement notice with no urgent deadline, so it can wait until the customer checks it later.",0.79,message_0346
+msg_060,notify,urgent,"This same-day deadline from a trusted faculty sender requires immediate action, since late internship approval submissions won't be accepted after 5 PM.",0.90,message_0284
+msg_004,notify,business_update,"This time-sensitive health update from a trusted business sender requires prompt review before a scheduled deadline, matching the user's usual quick-reply pattern.",0.90,message_0005
+msg_030,mute,promotion,"A duplicated marketplace listing for a used kurta set, from a sender the user routinely ignores, with no urgency to warrant attention.",0.86,message_0115
+msg_045,notify,urgent,"This is a time-sensitive delivery request with a strict 10-minute window, from a society group the user typically responds to quickly.",0.90,message_0061
+msg_052,mute,scam,"The sender impersonates a known brand from an unverified, recently created account on a lookalike domain.",0.87,message_0207
+msg_009,digest,event,"This casual sports-group message proposes an optional evening thread with no deadline, matching a pattern the user typically reads later without responding.",0.83,message_0074
+msg_071,digest,event,"This extended-family message is a vague, unconfirmed plan for tomorrow with no fixed time, matching a thread the user typically reads later without acting.",0.83,none
+msg_016,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,message_0024
+msg_065,digest,promotion,"This is a promotional retail alert with an artificial expiration deadline, matching a sender the user typically browses later rather than acts on immediately.",0.83,message_0261
+msg_038,mute,forward,The message is a chain forward asking the user to propagate it further.,0.87,message_0131
+msg_086,notify,business_update,This voice note from a business contact the user reliably answers quickly likely contains time-sensitive information warranting immediate attention.,0.90,message_0222
+msg_014,mute,promotion,The user has opted out of or repeatedly dismissed messages from this sender.,0.87,message_0018
+msg_094,digest,promotion,"This is a promotional welcome offer from a business account advertising a time-limited discount, which is informational and can wait without consequence.",0.80,message_0356
+msg_029,notify,promotion,"This is a time-sensitive marketplace listing with a firm price and weekend pickup window, from a sender the user typically engages with promptly.",0.88,message_0113
+msg_105,mute,forward,The message is a chain forward asking the user to propagate it further.,0.87,message_0373
+msg_002,notify,urgent,"This is a time-sensitive coworker request tied to an upcoming client meeting, needing a quick call before it starts to avoid mistakes.",0.90,message_0003
+msg_010,digest,business_update,"This is a routine feedback request from a business account with no time pressure, matching the user's pattern of reading such messages later.",0.83,message_0242
+msg_078,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,message_0220
+msg_013,mute,promotion,"This is a one-off resale post from a college faculty group, unrelated to academics, matching a sender the user consistently ignores.",0.86,none
+msg_018,mute,promotion,"This is a generic prize-claim lure from a marketplace group the user routinely ignores, showing classic low-value promotional spam patterns.",0.86,message_0026
+msg_044,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,message_0143
+msg_032,digest,personal,"A non-urgent request for shared class slides, matching this group's pattern of messages the user typically reads later without responding.",0.83,message_0119
+msg_106,notify,urgent,"This is a same-day, time-sensitive location change with a hard deadline, so immediate delivery helps the user avoid getting locked out.",0.88,message_0376
+msg_006,notify,urgent,"This is a same-day deadline from a society group the user reliably engages with quickly, warranting immediate delivery.",0.88,message_0044
+msg_109,mute,scam,The message contains instructions aimed at the routing system rather than the user.,0.87,message_0151
+msg_108,mute,scam,The message contains instructions aimed at the routing system rather than the user.,0.87,message_0094
+msg_019,mute,scam,"The sender impersonates a known brand from an unverified, recently created account on a lookalike domain.",0.87,message_0277
+msg_088,mute,personal,"A voice note with no text from a marketplace group the user routinely ignores, showing no signs of urgency or relevance.",0.86,message_0115
+msg_056,notify,urgent,A family member sent a time-sensitive scheduling change requiring a quick yes-or-no confirmation before a same-day deadline.,0.90,message_0217
+msg_027,digest,promotion,"This is a promotional travel offer from a business account with no time-sensitive action needed, matching a pattern the user typically skims later.",0.83,message_0007
+msg_050,notify,business_update,"This time-sensitive health update from a trusted business sender requires prompt review before a scheduled deadline, matching the user's usual quick-reply pattern.",0.90,message_0279
+msg_083,digest,personal,"This coworker group voice note carries no text preview, and this sender's messages are typically read later rather than acted on immediately.",0.83,message_0219
+msg_063,mute,urgent,"This is a scam message disguised as an urgent fee notice with a QR code, mismatched with its casual local_food group origin.",0.86,message_0364
+msg_033,notify,personal,"A caring family check-in from a fast-reply sender, low urgency but warmly personal, fitting quick habitual engagement.",0.88,message_0121
+msg_061,mute,forward,The message is a chain forward asking the user to propagate it further.,0.87,message_0080
+msg_020,mute,urgent,This is a suspicious link with urgency pressure from a marketplace group sender the user routinely dismisses without reading.,0.86,none
+msg_017,mute,urgent,"This urgent-sounding payment demand from a marketplace group matches a pattern the user routinely dismisses, suggesting low-value or spam-like content.",0.86,message_0319
+msg_058,mute,forward,The message is a chain forward asking the user to propagate it further.,0.87,message_0040
+msg_026,mute,scam,"The sender impersonates a known brand from an unverified, recently created account on a lookalike domain.",0.87,message_0032
+msg_047,digest,personal,"This is a routine facility update with a workaround already provided, so it can wait despite the sender's usual quick-reply pattern.",0.81,message_0001
+msg_046,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,message_0148
+msg_042,notify,urgent,"A society group sent a time-critical safety alert requiring immediate action within minutes, warranting instant delivery to a fast-responding recipient.",0.90,message_0140
+msg_079,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,message_0369
+msg_098,notify,urgent,"This message requests an urgent same-day medical decision from someone the user reliably responds to quickly, warranting immediate delivery.",0.88,message_0226
+msg_037,notify,urgent,"This society group alert signals a time-critical water tanker arrival with a 10-minute window, warranting immediate attention.",0.90,none
+msg_007,digest,event,"This is a low-urgency society update with a week-long deadline, matching a sender the user typically reads later without responding.",0.83,message_0275
+msg_085,mute,scam,"The sender impersonates a known brand from an unverified, recently created account on a lookalike domain.",0.87,message_0221
+msg_001,notify,urgent,"A society group sent a time-critical water supply alert with a 20-minute window, warranting immediate delivery given the user's fast reply habit.",0.90,message_0240
+msg_021,notify,urgent,"A society group sent a time-sensitive payment deadline with a safety caution, matching a sender the user typically responds to quickly.",0.90,message_0068
+msg_028,mute,promotion,The user has opted out of or repeatedly dismissed messages from this sender.,0.87,message_0034
+msg_012,mute,forward,The message is a chain forward asking the user to propagate it further.,0.87,message_0194
+msg_064,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,message_0087
+msg_103,notify,urgent,"This is a time-sensitive item hold with a hard 6 PM deadline, and the sender expects a prompt yes-or-no reply.",0.90,message_0065
+msg_031,notify,urgent,"A coworker group flagged a same-day sync with required prep items, matching this user's pattern of quick replies to this sender.",0.88,none
+msg_057,notify,urgent,"This is a direct, time-sensitive request from a coworker about a failing build that needs immediate attention before a client update goes out.",0.90,message_0169
+msg_087,mute,personal,"This is a content-free voice note from a real estate group the user routinely ignores, so it warrants no special attention.",0.86,message_0204
+msg_067,notify,urgent,"This society group message has a same-day payment deadline with a late fee risk, and the user typically responds to this sender quickly.",0.90,message_0068
+msg_039,notify,urgent,"This is a same-day, time-sensitive request directly addressing the user's child, matching the sender's usual pattern of quick replies from them.",0.90,message_0364
+msg_082,notify,personal,"This coworker group's voice note has no preview text, but fast prior replies to this sender warrant surfacing it immediately.",0.90,message_0218
+msg_066,mute,promotion,The user has opted out of or repeatedly dismissed messages from this sender.,0.87,message_0257
+msg_049,notify,urgent,"The user consistently opens and replies to this sender, so this message is worth an interruption.",0.90,message_0154
+msg_015,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,message_0045
+msg_051,mute,promotion,The user has opted out of or repeatedly dismissed messages from this sender.,0.87,message_0257
+msg_097,digest,personal,"This message explicitly states nothing is urgent and proposes continuing the conversation tomorrow morning, so immediate delivery isn't needed.",0.81,message_0054
+msg_089,digest,urgent,"This is a low-stakes lost-and-found update with a same-day deadline, informational rather than urgent enough to interrupt immediately.",0.79,message_0299
+msg_053,digest,personal,"This is a non-urgent research share explicitly marked for after-market reading, consistent with how this sender's posts are typically handled.",0.83,message_0161
+msg_059,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,message_0221
+msg_024,mute,promotion,The user has opted out of or repeatedly dismissed messages from this sender.,0.87,message_0257
+msg_072,mute,scam,"The message asks for OTP, card or wallet credentials through a suspicious verification flow.",0.87,none
+msg_036,mute,scam,"The sender impersonates a known brand from an unverified, recently created account on a lookalike domain.",0.87,message_0283
+msg_076,mute,scam,"The sender impersonates a known brand from an unverified, recently created account on a lookalike domain.",0.87,message_0207
+msg_055,notify,urgent,"This urgent, time-boxed request explicitly demands an immediate call within ten minutes, warranting instant delivery despite coming from a group thread.",0.90,message_0166
+msg_102,notify,urgent,"This is a time-sensitive operational request requiring immediate standby, and the user's fast-reply history with this sender confirms its priority.",0.90,message_0230
+msg_080,notify,urgent,"This is a time-sensitive society alert requiring the user to move their car within minutes, warranting immediate delivery.",0.90,message_0130
+msg_093,digest,urgent,"This is a routine delivery-window update with no action needed right now, so it can wait until later without any downside.",0.79,message_0349
+msg_034,mute,greeting,"A routine morning check-in from a family group with no urgent request, matching a pattern the user typically skips over.",0.86,message_0013
+msg_035,digest,promotion,"This is a promotional pitch from a business account with no urgency, matching a pattern the user typically skims later without acting.",0.83,message_0281
+msg_101,digest,personal,"This is a low-urgency personal check-in with explicit no-reply-needed instructions, matching the pattern of messages this sender sends that the user reads later without acting.",0.83,message_0268
+msg_041,digest,business_update,"This is a non-urgent survey request from a business account, matching a pattern the user typically reads later without responding.",0.83,message_0137
+msg_011,mute,forward,The message is a chain forward asking the user to propagate it further.,0.87,message_0014
+msg_110,mute,scam,The message contains instructions aimed at the routing system rather than the user.,0.87,message_0238
+msg_095,mute,scam,The message contains instructions aimed at the routing system rather than the user.,0.87,message_0087
+msg_074,mute,promotion,"This is a duplicated promotional pitch for a token payment on unverified plots, matching a sender the user routinely ignores.",0.86,message_0204
+msg_073,mute,urgent,"This is a phishing-style urgency tactic from a marketplace group the user routinely ignores, pushing a suspicious verification link.",0.86,message_0147
+msg_054,mute,urgent,"This is a fee-upfront loan scam impersonating an unrelated local_food group, using false urgency to pressure payment—unrelated to the sender's usual harmless content.",0.86,message_0389
+msg_068,digest,personal,"This book club message explicitly states no urgency, with a poll coming later tonight, matching the user's usual pattern of reading later.",0.83,message_0191
+msg_100,notify,urgent,"This is a time-critical operational emergency with a 20-minute deadline, and the user's fast reply pattern with this sender confirms immediate delivery is warranted.",0.90,message_0362
+msg_062,digest,event,"This is a routine building announcement about tomorrow's scheduled test, so it can wait despite the sender's usual quick-reply pattern.",0.81,message_0043
+msg_096,notify,urgent,"This is a time-sensitive message about a found passport requiring pickup before a same-day deadline, warranting immediate attention.",0.90,none
+msg_043,notify,urgent,A society admin's forwarded alert about a 15-minute water tanker window is time-critical and needs immediate action from someone likely to respond fast.,0.90,none
+msg_077,digest,personal,Held until quiet hours end; the message is not urgent enough to interrupt the user overnight.,0.80,message_0403
+msg_081,notify,personal,"A voice note from a school group contact the user typically answers fast, so quick delivery matches their usual response pattern.",0.90,message_0217
+msg_025,notify,business_update,"This is a routine shipping update from a business the user engages with promptly, warranting immediate delivery despite lacking true urgency.",0.90,message_0004
+msg_084,mute,spam,The user has opted out of or repeatedly dismissed messages from this sender.,0.87,message_0220
+msg_022,mute,urgent,"This is a routine payment reminder from a society group the user typically ignores, with no unique or time-critical personal relevance.",0.86,message_0151

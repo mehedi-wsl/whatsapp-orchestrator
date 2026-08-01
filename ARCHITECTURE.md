@@ -84,6 +84,8 @@ Recorded because each was proposed in good faith and disproved by the data.
 | A direct `@mention` re-promotes over a group mute | `group_001` (muted by both u_007 and u_001) holds `msg_040` `@u_007 forward this to ten people for blessings` (→mute) and `msg_056` `@u_001 doctor appointment moved to 6 PM` (→notify). Identical structure, opposite answers | Precedence cannot resolve this. Content classification must emit urgency and chain-likeness as separate features |
 | `forwarded_count ≥ 6` is a cheap strong spam signal | Same bucket holds legit urgent content: fwd=11 water tanker, fwd=7 fire alarm, fwd=11 family personal | **Dropped entirely** (user decision). Chain-*instruction language* is retained; the counter is not |
 | Marketplace groups are duplicate-heavy ⇒ pure personalization play | Actually 16 distinct texts across 17 messages (one duplicate pair). Marketplace is a scam **delivery vector** | No marketplace rule |
+| Urgent media from family/friends/groups ⇒ `notify`/`urgent` | No family/friends media exists (all 23 media rows are group or business, 0 personal). Two "HDFC Bank" voice notes — one legitimate, one 20-day-old phisher — both sound urgent | Media traverses the same six-layer stack; **no promotion path** (§8) |
+| Prioritise voice notes from family | Also an empty set: 0 of 8 voice notes come from family/friends groups or personal chats; all 11 family-group and all 17 personal messages are text | Replaced by `(user, sender)` precedent, which is unanimous for **all 8** voice notes (§8) |
 | `verified` flag separates safe from unsafe businesses | business_092 (Thrillophilia) → `link.wame.pro` and business_095 (Polaris) → `weurl.co` are **verified spoofers**; business_032 (Green Cross Pharmacy) is **unverified but legit** at 420 days old with 0 reports | `verified` is weak. The composite in §5 is what separates |
 
 ---
@@ -95,10 +97,45 @@ Per explicit direction, safety is an **unconditional top layer** — it runs bef
 **What actually separates scam accounts** is a composite, not any single flag:
 
 ```text
-brand_name == "Unknown"  AND  account_age 12–36 days  AND  reports 16–29
+official_domain is non-empty
+  AND domain_used_by_sender != official_domain
+  AND verified == 0
+  AND account_age_days <= 60
 ```
 
-This cleanly isolates business_049 / 098 / 099 / 100. Contributing (non-gating) risk features: domain mismatch, URL shorteners, payment-credential solicitation, chain-forward instruction language.
+This isolates **21 of 110 business accounts**, firing on exactly **7 of the 110 messages**
+(`msg_019`, `msg_026`, `msg_036`, `msg_052`, `msg_076`, `msg_085`, `msg_108`).
+
+> Corrected during implementation: an earlier draft said 24 accounts. 24 is the count *before*
+> the blank-domain guard below is applied — which the same section already required, so the
+> figure was internally inconsistent. Measured value with the guard applied is **21**.
+
+The cluster is brand impersonation: real brand names paired with lookalike domains, all
+unverified, all 20–35 days old — `paytm.com → paytm-kyc.in`, `sbi.bank.in → sbireward.in`,
+`icicibank.com → icici-secure.net`, `flipkart.com → flipkart-refund.in`, and 20 more.
+
+`domain_used_by_sender_age_days` corroborates sharply: the caught senders' domains are
+**2–17 days old**. A corporate domain registered two days ago is not a corporate domain.
+
+### Two guards this rule needs
+
+Both are real rows in the data, and both would be false positives without the guard:
+
+| Guard | Case |
+|---|---|
+| Require non-empty `official_domain` | **business_032** Green Cross Pharmacy — blank official domain, so string-comparison "mismatch" is spurious. Legit: 420 days old, unverified |
+| `verified` + old account + old sender domain ⇒ **link shortener**, not spoofing | **business_092** Thrillophilia → `link.wame.pro` (domain 3368 d) and **business_095** Polaris → `weurl.co` (domain 3455 d). Both verified, both ~4300 days old. A solved row confirms this pattern is `digest`/`promotion`, **not** mute |
+
+> **Superseded (recorded so it is not reintroduced):** an earlier version of this composite was
+> `brand_name == "Unknown" AND account_age 12–36 AND reports 16–29`. It was wrong twice over — it
+> referenced a column named `reports_count` that **does not exist** (the real column is
+> `user_reports_30d`), and it caught only 4 accounts while missing the entire 21-account
+> impersonation cluster above. Impersonators use a **real** brand name; that is the whole point of
+> impersonation. Keying on `brand_name == "Unknown"` looks for the one thing a competent
+> impersonator never does.
+
+Contributing (non-gating) risk features: fresh sender domain, URL shorteners,
+payment-credential solicitation, chain-forward instruction language.
 
 ### Prompt injection
 
@@ -143,7 +180,9 @@ Six layers, evaluated in order. First layer to produce a decision wins.
 
 ## 7. Evidence Selection — The Weakest Link
 
-`evidence_message_ids` is scored separately. Current backtest: **13/28 correct at top-1** — much weaker than action accuracy, which reached **26/28** on solved rows.
+`evidence_message_ids` is scored separately. Current backtest: **18/28 correct at top-1** (recall@3 24/28) — still the weakest axis, against action accuracy of **26/30 rules-only** and **28/30 with the model layer** on the solved rows.
+
+An earlier draft of this section quoted 13/28 and 26/28. Both were stale: the first predated the retrieval rewrite, and the second used the wrong denominator — action is scored over all 30 solved rows, evidence over the 28 that carry a gold citation.
 
 Action accuracy survives the weak retrieval only because sources tend to be label-consistent — the system often picks the *wrong* precedent from the *right* source and still lands the right action. **That is luck, and it does not transfer to the evidence score.**
 
@@ -170,6 +209,112 @@ media file ──▶ [backend] ──▶ transcript ──▶ cache/media_transc
 ```
 
 The cache is what makes this safe: transcription runs once, results are committed as data, and every later run is deterministic and offline. Backend choice changes accuracy, never the contract.
+
+### Media does NOT get a promotion path
+
+Media transcripts are normalized into the **same** text pipeline and traverse the **identical**
+six-layer stack. Reading the media changes only what layer 3 can *see*; it never grants an
+earlier or more permissive route. There is no media-specific escalation rule.
+
+This was tested as a proposal — "urgent media from family/friends/groups ⇒ urgent" — and the
+data rejects it on three counts:
+
+**1. It targets an empty set.** All 23 media messages are group (15) or business (8).
+**Zero are personal**, and **none** come from the `family`, `extended_family`, or `friends`
+group types. The 15 group media are: marketplace 5, coworker 3, real_estate 2, school_group 2,
+college_faculty 1, investment_tips 1, society 1.
+
+**2. Media skews toward the scam vectors.** marketplace + real_estate + investment_tips
+account for 8 of the 15 group media messages.
+
+**3. The decisive pair — two voice notes, same claimed brand, opposite answers:**
+
+| Msg | Sender | Verified | Age | Domain | Verdict |
+|---|---|---|---|---|---|
+| `msg_084` | business_002 "HDFC Bank" | ✅ 1 | 974 d | `hdfc.bank.in` = official | legitimate |
+| `msg_085` | business_033 "HDFC Bank" | ❌ 0 | **20 d** | `hdfcbank-kyc.in` ≠ `hdfc.bank.in` | **KYC phishing** |
+
+Both are bank voice notes; both will *sound* urgent, because that is what bank audio sounds
+like. A rule that promotes urgent-sounding audio escalates the phishing one to `notify`.
+
+**Urgency is the scam's primary instrument, not a safety signal.** `msg_064`: *"Verify wallet
+and card details before midnight or refund processing will close tonight."* `msg_074`: *"Pay Rs
+11,000 token today to block 1200 sqft."* Treating urgency as a promoter inverts the defense —
+which is precisely why the safety guard is layer 1 and urgency is layer 3.
+
+**What is kept from the proposal:** media must genuinely be read — an empty `message_text` must
+not make content invisible. Real urgent media does exist (`msg_062`, society fire-alarm notice;
+`msg_031`, coworker deployment sync). It simply does not come from family or friends in this
+dataset. Absent a transcript, media falls to layer 6 (`digest`) — never to `notify`.
+
+### Media routing procedure (resolved)
+
+Images and voice notes are **different problems** and are handled separately. The split is not
+a judgement call — it is categorical in the data:
+
+| | Count | Caption present |
+|---|---|---|
+| Images (the 110) | 15 | **15 / 15** |
+| Voice notes (the 110) | 8 | **0 / 8** |
+| Images (history) | 19 | 19 / 19 |
+| Voice notes (history) | 4 | 0 / 4 |
+
+**Images → route on the caption.** Every image carries usable text (`msg_062` "Fire alarm test
+tomorrow 9 AM to 11 AM"; `msg_074` "Pay Rs 11,000 token today to block 1200 sqft"). Images enter
+the ordinary text pipeline unchanged. OCR is enrichment, never a prerequisite.
+
+**Voice notes → route on relationship precedent.** All 8 have **unanimous** `(user, sender)`
+history, each with an evidence ID:
+
+| Message | User | Sender | History | Action |
+|---|---|---|---|---|
+| `msg_082` | u_028 | u_046 (coworker) | 3/3 | notify |
+| `msg_081` | u_001 | u_045 (school) | 1/1 | notify |
+| `msg_086` | u_004 | Thrillophilia | 1/1 | notify |
+| `msg_083` | u_029 | u_046 (coworker) | 1/1 | digest |
+| `msg_088` | u_033 | u_048 (marketplace) | 7/7 | mute |
+| `msg_087` | u_040 | u_052 (real estate) | 8/8 | mute |
+| `msg_085` | u_009 | HDFC Bank (phisher) | 1/1 | mute |
+| `msg_084` | u_040 | HDFC Bank (legitimate) | 1/1 | mute |
+
+`msg_082` and `msg_083` share sender `u_046` and land on **opposite actions** for different
+recipients — the personalization requirement in its purest form, and the reason a category label
+like "family" would be too coarse even if the dataset contained one. What matters is not what the
+relationship is *called* but how this user has actually treated this sender.
+
+`msg_084` is worth noting separately: HDFC Bank, verified, 974 days old, correct domain —
+entirely legitimate, and u_040 mutes it anyway. **Legitimacy is not importance.**
+
+### The action / type split
+
+Precedent yields `action` for all 8 voice notes with no ASR. It **cannot** yield `message_type` —
+nothing in an engagement signature distinguishes `event` from `payment` from `promotion`, and type
+is a separately scored axis.
+
+```text
+action        ← relationship precedent   (all 23 media rows covered, no tooling)
+message_type  ← content (caption / OCR / ASR)
+safety        ← layer 1, above both — msg_085 is muted on sender metadata alone
+```
+
+Content therefore refines the **type**; precedent decides the **action**. The payoff is
+containment: if ASR is unavailable or wrong, type accuracy degrades and routing is untouched.
+
+### `media_id` as a retrieval key
+
+**16 of 23 media messages reuse a file that already appears in `message_history.csv` with a
+label, and all 16 agree.** Six are same-user matches (`msg_005`→`message_0401`,
+`msg_062`→`message_0410`, `msg_077`→`message_0403`, …). This is free, deterministic evidence for
+`evidence_message_ids` — directly addressing the weakest scored axis (§7).
+
+**It is capped at layer 4 and is never a safety override.** `msg_064` uses `img_002`, whose
+history label is `notify`; its caption reads *"Verify wallet and card details before midnight."*
+`img_008` is shared across `msg_005`, `msg_029`, and `msg_030` with different senders.
+**Same file ≠ same intent.**
+
+**Net:** all 23 media messages route deterministically with **zero tooling**. ASR over the 5
+residual voice notes (`msg_086`, `msg_083`, `msg_082`, `msg_081`, `msg_084`) becomes a
+type-accuracy upgrade rather than a blocker.
 
 ---
 
@@ -204,7 +349,41 @@ Confidence is emitted **within the band for the chosen action**, positioned by e
 
 ---
 
-## 11. Component Map
+## 11. The Local Model Layer
+
+The rule layer answers "which gate fires." It cannot answer "what is this message about," and every remaining miss is of the second kind. `code/llm.py` adds that judgment and nothing else.
+
+### Why a local model and not a free API tier
+
+No API key exists in this environment, and a hosted free tier makes the submission depend on a key the grader does not have and a rate limit nobody controls. A local `llama.cpp` server with Qwen2.5-3B-Instruct (Q4_K_M, ~1.9 GB) needs **no key at all**, which also means §6.3's "read secrets from environment variables only" is satisfied vacuously — there is no secret. Responses are cached to `code/llm_cache.json`, so a run reproduces exactly on a machine that never downloads the weights.
+
+### What the model is allowed to do
+
+| Job | Scope | Constraint |
+|---|---|---|
+| `message_type` adjudication | Only rows where ≥2 lexical patterns collide | GBNF-limited to the colliding options |
+| `is_directed_request` | One boolean, consumed only by gates 3–4 | GBNF-limited to `yes`/`no` |
+| `reason` prose | Non-safety rows | GBNF-limited to one bounded sentence |
+
+**The model cannot set `action`.** It never runs on a row the safety gate decided, so injected text never reaches a model whose output is trusted. Because every answer is grammar-constrained, a successful injection can at most flip one tiebreak boolean or one type label on a row that already passed safety — it cannot widen the output space.
+
+### Three findings worth recording
+
+**Thread count dominated everything.** Generation ran at **0.23 tok/s** until the cause was found: this host is an Intel Core Ultra 7 155H, and `-t 20` schedules work across E-cores that stall every sync. `-t 6` (P-cores only) gives **8.66 tok/s** — a 36× improvement from one flag, on the same weights.
+
+**The anti-injection preamble destroyed the task.** Opening each prompt with a paragraph explaining that the fenced text was untrusted made the 3B answer `no` to all seven `is_directed_request` probes, including *"when you get 5 mins can you call?"*. Removing it recovered the judgment. A small model spends its limited attention on whatever you put first. The defence that survives is structural (gate ordering + grammar constraints), not a written instruction — which is the more reliable defence anyway.
+
+**Narrow the choice, not the definitions.** Offering all 11 types made the model drift on rows the regex already had right. Offering only the 2 colliding options fixed `sample_msg_007` (`event` → `promotion`, a travel advert containing the word "itinerary") and `sample_msg_048` (`payment` → `business_update`, an advisory saying the brand *never* asks for payment details).
+
+### What it does not fix
+
+`sample_msg_042` is a voice note with empty text, gold `notify/urgent`. No amount of reasoning helps — 8 of the 110 messages have no text at all, and they need ASR, not a language model. `sample_msg_002` (`urgent` vs `event` for a same-day bus change) is a genuine taxonomy judgment the model gets wrong and a human might too.
+
+One miss was fixed with **no model at all**: gold labels a stranger's message `unknown`, not `personal`, so `type_candidates` now keys that on whether any precedent exists. That took message_type from 83.3% to 86.7% before the first model call.
+
+---
+
+## 12. Component Map
 
 | # | Component | Depends on | Notes |
 |---|---|---|---|
@@ -221,20 +400,22 @@ Confidence is emitted **within the band for the chosen action**, positioned by e
 
 ---
 
-## 12. Open Questions
+## 13. Open Questions
 
 | Question | Status | Current default |
 |---|---|---|
-| Media backend | Undecided — needs key or local tooling | Metadata-only (degraded) |
+| Media `action` routing | **Resolved** — captions + precedent cover all 23 with no tooling (§8) | — |
+| Media backend (for `message_type` only) | Open — ASR would refine type on 5 voice notes | Type from sender/context; routing unaffected |
+| Media routing conventions | **Unvalidated** — 0 of 30 solved rows are media; affects 23 of 110 | Same six-layer stack as text; no promotion path (§8) |
 | Quiet-hours / DND policy | **Unvalidated** — 0 of 30 solved rows exercise it; affects 8 of 110 | Demote non-urgent only; never demote urgent |
 | `payment` conventions | **Unvalidated** — 0 of 30 solved rows; 24 of 110 use payment language | Urgent + this-week ⇒ notify; else digest; unknown sender ⇒ safety layer |
-| Evidence top-1 rate | 13/28 — known weak | See §7 |
+| Evidence top-1 rate | 18/28 — known weak; never emits `none` (§7) | See §7 |
 
 The two "unvalidated" rows are the honest risk in this design: both affect a meaningful slice of the 110 and neither can be checked against a single solved example. They are decided by policy reasoning, and this document is where that is on record.
 
 ---
 
-## 13. Constraints Held Throughout
+## 14. Constraints Held Throughout
 
 - Read only from `dataset/`. No organizer-only files, no hardcoded labels.
 - Secrets from **environment variables only** — never committed, never logged.
