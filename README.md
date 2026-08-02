@@ -21,7 +21,9 @@ Takes about two seconds and writes `output.csv` to the repo root:
 message_id,action,message_type,reason,confidence,evidence_message_ids
 ```
 
-One row per input message, in input order. Verified byte-identical across a fresh clone.
+One row per input message, in input order. Verified **byte-identical to the submitted
+`output.csv`** from a fresh clone with no key and no network — including the written `reason`
+prose, which replays from the committed cache (see *Reproducibility* below).
 
 | flag | effect |
 |---|---|
@@ -154,12 +156,25 @@ code/
   features.py          structural features from the dataset CSVs
   retrieval.py         precedent lookup and evidence selection
   llm.py               model backends (hosted / local / absent), disk-cached
+  llm_cache.json       every model answer ever used — makes runs offline & exact
   decide.py            the older gate stack, kept runnable for comparison
   evaluate.py          backtest for the gate stack
   score_rules.py       backtest for the submitted path
   README.md            developer notes
 dataset/               provided unchanged
 ```
+
+### Reproducibility
+
+A model wrote the `reason` prose and answered the eleven label questions. Both sets of answers are
+committed as data — `llm_cache.json` and `label_store.json` — so **without `--llm` the model layer
+is frozen rather than disabled**: cached answers still replay, nothing new is requested, and no
+backend is contacted. That is why a keyless offline run reproduces the submitted file exactly
+instead of a blander variant with generic reasons.
+
+`--llm` is what unfreezes it, allowing new calls for anything not already cached. The routing
+fields never depend on it: a model may rewrite the prose and may *add* a mute, but it can never
+change an action assigned by policy or remove a mute.
 
 ### About `code/label_store.json`
 

@@ -302,7 +302,14 @@ def build_decision(msg, feats, labels, cands=(), use_llm: bool = False):
 
     # A model may rewrite the prose, never the routing. Guarded rows keep their
     # fixed wording: those are the rows whose text may be adversarial.
-    if use_llm and outcome.get("decided_by") != "guarded":
+    #
+    # This is attempted on every run, not just under --llm, because the written
+    # reasons are already in the committed cache. Without --llm the model layer
+    # is in cache-only mode, so this replays what is on disk and asks for
+    # nothing new; a row with no cached prose simply keeps the rule's own
+    # wording. That is what lets a keyless run reproduce the submitted
+    # output.csv byte for byte instead of a blander variant of it.
+    if outcome.get("decided_by") != "guarded":
         try:
             import llm
             written = llm.write_reason(msg, feats, action, kind, reason)

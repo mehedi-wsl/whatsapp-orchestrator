@@ -53,6 +53,16 @@ def run(dataset_dir: str, out_path: str, quiet: bool = False,
     except ImportError:
         retrieval = None
 
+    # Without --llm the model layer is not disabled, it is frozen: cached
+    # answers still replay, but nothing new is requested and no backend is
+    # contacted. A keyless, offline run therefore reproduces the submitted
+    # output.csv exactly rather than a degraded version of it.
+    try:
+        import llm
+        llm.set_cache_only(not use_llm)
+    except ImportError:
+        pass
+
     # The declarative path is opt-in and degrades: if labels or policy are
     # missing the gate stack still produces a complete, valid output.csv.
     route_mod = extract_mod = None

@@ -104,6 +104,22 @@ def supports_grammar() -> bool:
     substitute for checking.
     """
     return backend() == "local"
+
+
+# Replay mode. The committed `llm_cache.json` holds every answer this system
+# has ever used, so a run with no key and no server can still reproduce the
+# submitted output exactly -- it just may not produce anything *new*. Setting
+# this makes a cache miss return None immediately instead of reaching for a
+# backend, which is the difference between "offline and faithful" and "offline
+# and quietly degraded".
+CACHE_ONLY = False
+
+
+def set_cache_only(flag: bool) -> None:
+    global CACHE_ONLY
+    CACHE_ONLY = bool(flag)
+
+
 TIMEOUT = float(os.environ.get("LLM_TIMEOUT", "120"))
 CACHE_PATH = os.environ.get(
     "LLM_CACHE",
@@ -226,6 +242,8 @@ def complete(prompt: str, grammar: str = "", max_tokens: int = 64,
     hit = CACHE.get(k)
     if hit is not None:
         return hit
+    if CACHE_ONLY:
+        return None
 
     if backend() == "anthropic":
         out = _anthropic(prompt, max_tokens, prefill)
