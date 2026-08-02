@@ -1,130 +1,204 @@
-# HackerRank Orchestrate
+# Message Notification Router — submission
 
-Starter repository for the **HackerRank Orchestrate** 24-hour hackathon.
+Routes every message in `dataset/messages.csv` to **notify**, **digest**, or **mute**, assigns a
+`message_type`, writes a human-readable `reason`, a calibrated `confidence`, and the historical
+message used as evidence.
 
-## Message Notification Router
-
-Build an AI-powered system for WhatsApp that decides which messages deserve immediate attention, which should wait, and which should be muted.
-
-The system must reason over multimodal messages, including text messages, image posters/screenshots, and voice notes.
-
-WhatsApp is noisy. A user can receive family chats, society notices, school updates, co-worker messages, business account promotions, image posters, voice notes, and scams in the same message stream. Treating every message the same creates two bad outcomes: important messages get missed, and unwanted or risky messages interrupt the user.
-
-Read [`problem_statement.md`](./problem_statement.md) for the full task spec, input/output schema, allowed values, and submission format.
+Measured on the 30 solved rows in `dataset/sample_messages.csv`: **action 96.7%**, message_type 83.3%.
 
 ---
 
-## Repository Layout
+## Run it
 
-```text
-.
-├── AGENTS.md                         # Rules for AI coding tools + transcript logging
-├── problem_statement.md              # Full challenge statement
-├── README.md                         # You are here
-└── dataset/
-    ├── messages.csv                  # Messages to route
-    ├── output.csv                    # Blank submission template
-    ├── sample_messages.csv           # Solved examples
-    ├── users.csv                     # User notification behavior
-    ├── groups.csv                    # Group metadata
-    ├── group_members.csv             # User-group relationships
-    ├── business_accounts.csv         # Business sender metadata
-    ├── user_business_history.csv     # User-business history
-    ├── message_history.csv           # Historical messages
-    ├── message_events.csv            # User reactions to historical messages
-    ├── images.csv                    # Image IDs and media file paths
-    ├── voice_notes.csv               # Voice note IDs and media file paths
-    ├── daily_notification_summary.csv
-    └── media/
-        ├── images/
-        └── audio/
+```bash
+python3 code/main.py --rules
+```
+
+Python 3.9+. **Standard library only — nothing to install, no API key, no network, no model.**
+Takes about two seconds and writes `output.csv` to the repo root:
+
+```
+message_id,action,message_type,reason,confidence,evidence_message_ids
+```
+
+One row per input message, in input order. Verified byte-identical across a fresh clone.
+
+| flag | effect |
+|---|---|
+| `--rules` | route with the declarative policy in `code/rules.json` — **the submitted path** |
+| *(none)* | route with the older hand-ordered gate stack in `code/decide.py`, kept for comparison |
+| `--llm` | allow model calls to fill any label not already cached; requires `ANTHROPIC_API_KEY` |
+| `--dataset DIR` / `--out FILE` | override input and output paths |
+
+Reproduce the backtests:
+
+```bash
+python3 code/score_rules.py    # the submitted path
+python3 code/evaluate.py       # the gate stack
 ```
 
 ---
 
-## What You Need to Build
+## Approach
 
-For every row in `dataset/messages.csv`, produce one row in `output.csv` with:
+### The core problem
 
-| Column | Meaning |
-|---|---|
-| `message_id` | Incoming message ID |
-| `action` | One of `notify`, `digest`, or `mute` |
-| `message_type` | Best-fit message category |
-| `reason` | Short human-readable explanation |
-| `confidence` | Number from `0` to `1` |
-| `evidence_message_ids` | Historical message IDs used as evidence; write `none` if there is no useful evidence |
+Two messages can be word-for-word identical and belong in different buckets. `msg_082` and
+`msg_083` are voice notes from the *same sender* (`u_046`) and land on **opposite** actions,
+because they go to different recipients. Any system that classifies message content alone is
+solving the wrong problem — the label lives in the relationship, not in the text.
 
-Your system should make personalized decisions using the provided message, user, group, business, media, and historical interaction data.
-For image and voice-note messages, `images.csv` and `voice_notes.csv` only provide file paths; your system should inspect the media files themselves.
+### 1. Recovering the missing supervision
+
+`dataset/messages.csv` ships unlabelled. But `message_events.csv` records how users reacted to
+412 historical messages, and those 412 reaction tuples `(opened, replied, dismissed, muted,
+reported)` collapse into **exactly 5 distinct signatures**, not the ~32 that free-form behaviour
+would produce:
+
+| signature | count | reads as |
+|---|---|---|
+| opened + replied | 153 | notify |
+| opened, no reply | 110 | notify |
+| dismissed | 79 | digest |
+| muted | 55 | mute |
+| reported | 15 | mute |
+
+Five clean buckets is not how organic behaviour looks — it is how *generated* behaviour looks.
+The history is effectively labelled, which turns an unsupervised problem into a retrieval problem.
+
+### 2. The retrieval key is the relationship
+
+Precedent is keyed on `(user_id, sender)` — not on sender reputation, and not on message
+similarity. Over the 110 messages that key gives **79 unanimous**, 25 mixed, 6 with no history.
+Unanimous precedent alone matches gold action on 21 of the 22 applicable solved rows.
+
+This is what makes decisions personalized. `msg_084` is from HDFC Bank: verified, 974 days old,
+correct official domain, entirely legitimate — and user `u_040` mutes it every time.
+**Legitimacy is not importance.**
+
+### 3. Policy is data, not code
+
+The routing logic lives in two JSON files that a reviewer can read without reading any Python:
+
+- **`code/labels.json`** — eleven yes/no questions about what a message *is*. The wording of the
+  question **is** the definition: *"Is the sender waiting on the recipient?"*, *"Does this message
+  ask the reader to provide a one-time password, PIN, card number, CVV, or account password?"*
+  Nineteen further labels are read straight off the dataset CSVs with no judgement involved.
+- **`code/rules.json`** — 18 action rules and 17 type rules. Ordered, first match wins, each with
+  an `id`, a condition, and a written rationale. `code/engine.py` evaluates this table and contains
+  **no routing knowledge of its own**.
+
+Every output row records the rule that produced it, so any decision traces back to one named line
+of policy. Changing behaviour means editing a rule, not hunting through branches.
+
+An earlier version of this system encoded policy as regexes over message text. It scored higher —
+93.3% on message_type — until the memorised literals were stripped out (`alert threshold`,
+`nothing dramatic`, `no crash damage`, `leaving 15 mins early`, `we can talk tomorrow`), at which
+point it fell to 70.0%. **The entire 23-point margin was memorisation of the dev set.** That
+measurement is why the declarative path is the one submitted, despite a lower headline type score.
+
+### 4. Safety sits above everything, and out of reach
+
+Five of the 110 messages contain instructions aimed at the router itself. So the safety rules
+(`S0`–`S4`, `U1`) are evaluated **in code and never shown to a model**, and they key on structural
+facts that message text cannot influence: account age, domain mismatch, verification status, an
+explicit opt-out.
+
+The decisive pair: `msg_084` and `msg_085` are both voice notes claiming to be HDFC Bank. One is
+verified, 974 days old, on `hdfc.bank.in`. The other is unverified, **20 days old**, on
+`hdfcbank-kyc.in`. Both will *sound* urgent, because that is what bank audio sounds like — so
+urgency is treated as the scam's primary instrument, never as a promoter.
+
+Where a model does participate, trust is asymmetric: **a model may add a mute on its own, but it
+can never remove one.** Each lexical safety detector is OR'd with its model-judged twin.
+
+### 5. Media
+
+Images and voice notes are categorically different problems in this data, so they are handled
+separately:
+
+- **Images (15/15 carry a caption)** → route on the caption through the ordinary text pipeline.
+  OCR is enrichment, never a prerequisite.
+- **Voice notes (0/8 carry any text)** → route on relationship precedent, which is unanimous for
+  all 8. ASR would improve `message_type`; it cannot change `action`.
+
+All 23 media messages therefore route deterministically with zero tooling, and 16 of them reuse a
+media file that already appears in `message_history.csv` with a label — free, exact evidence.
+
+### 6. Confidence and evidence
+
+Confidence is banded by action and scaled by the strength of the matching rule, landing in
+0.79–0.90 against the gold range of 0.78–0.91. Evidence is the single most relevant historical
+message from the same relationship; 102 of 110 rows carry one and 8 correctly emit `none`
+(gold emits `none` on 6.7%).
+
+`ARCHITECTURE.md` is the full design record, including §4 — the rules that sounded right and were
+disproved by the data.
 
 ---
 
-## Suggested Workflow
+## Layout
 
-1. Inspect `dataset/sample_messages.csv` to understand the expected output format.
-2. Load `dataset/messages.csv` and all relevant context files.
-3. Build your routing system using any approach: LLMs, retrieval, rules, classifiers, agents, or hybrids.
-4. Write predictions to `output.csv`.
-5. Evaluate your approach on the solved sample rows before submitting.
+```
+README.md              you are here
+ARCHITECTURE.md        design record, incl. what was tried and rejected
+output.csv             the submitted predictions (110 rows)
+code/
+  main.py              entry point; writes output.csv
+  labels.json          the label specification  (the questions ARE the definitions)
+  rules.json           the routing policy       (ordered, first-match-wins)
+  engine.py            evaluates rules.json; holds no routing knowledge
+  route.py             turns a rule match into an output row
+  extract.py           fills label_store.json from the label questions
+  label_store.json     cached label answers — see below
+  features.py          structural features from the dataset CSVs
+  retrieval.py         precedent lookup and evidence selection
+  llm.py               model backends (hosted / local / absent), disk-cached
+  decide.py            the older gate stack, kept runnable for comparison
+  evaluate.py          backtest for the gate stack
+  score_rules.py       backtest for the submitted path
+  README.md            developer notes
+dataset/               provided unchanged
+```
 
-You may use any language or runtime. Python, JavaScript, and TypeScript are all reasonable choices.
+### About `code/label_store.json`
 
----
+**This is not a table of hardcoded answers and contains no ground-truth labels.**
 
-## Requirements
+It caches model answers to the eleven questions defined in `labels.json` — *"does it ask for an
+OTP?"*, *"is the sender waiting on a reply?"*. Nothing in it derives from `sample_messages.csv` or
+any organizer-only file, and no entry names an action, a message type, or an expected output.
 
-Your solution must:
+It is committed so the submission runs with no key, no model and no network, and reproduces
+byte-identically. To rebuild it from scratch:
 
-- be runnable from the terminal
-- read the provided files from `dataset/`
-- produce a valid `output.csv`
-- include one prediction for every `message_id` in `dataset/messages.csv`
-- not use organizer-only files or hardcoded labels
+```bash
+rm code/label_store.json
+ANTHROPIC_API_KEY=... python3 code/main.py --rules --llm
+```
 
-If you use API keys or secrets, read them from environment variables. Never hardcode secrets in the repo.
-
----
-
-## Evaluation
-
-Your `output.csv` will be compared against hidden ground-truth labels.
-
-The scoring will consider:
-
-- correctness of `action`
-- correctness of `message_type`
-- usefulness and consistency of `reason`
-- whether `evidence_message_ids` point to relevant historical messages
-- reasonable confidence calibration
-
-Strong systems will combine retrieval, structured metadata, behavioral history, safety checks, OCR/ASR handling, and contextual reasoning.
-
----
-
-## Chat Transcript Logging
-
-This repo includes an [`AGENTS.md`](./AGENTS.md) file for AI coding tools. It asks compatible tools to append conversation summaries to:
-
-| Platform | Path |
-|---|---|
-| macOS / Linux | `$HOME/hackerrank_orchestrate_august26/log.txt` |
-| Windows | `%USERPROFILE%\hackerrank_orchestrate_august26\log.txt` |
-
-Upload this log as your chat transcript at submission time. Do not paste secrets into the chat.
+Roughly five minutes and a few cents.
 
 ---
 
-## Submission
+## Known limitations
 
-Submit the following files as instructed by HackerRank:
+Stated plainly rather than left to be discovered:
 
-1. **Code zip**: full runnable solution, prompts/configs, README, and any evaluation files.
-2. **Predictions CSV**: final `output.csv` for all rows in `dataset/messages.csv`.
-3. **Chat transcript**: the `log.txt` described above.
+- **`message_type` is the weaker axis (83.3%).** Four of the five misses are `event` / `personal` /
+  `business_update` confusions where the label `is_scheduled_event` fires slightly too eagerly.
+- **Two rows are unwinnable as specified.** `002` and `003` produce identical label sets with
+  opposite gold types; separating them needs a twelfth label, not a rule change.
+- **Eight messages have no text at all** (voice notes without transcripts). Their `action` is
+  correct via precedent; their `message_type` is the best available inference.
+- **The eleven labels are extracted in one call, so they are coupled** — editing one definition can
+  shift another's answers. Isolating them into separate calls was tried and scored *worse*
+  (action 96.7% → 86.7%), because judging urgency alongside "is a reply wanted" calibrates both.
+  A documented cost, not a bug: any edit to `labels.json` needs a full re-extract and re-score.
 
-Before submitting, confirm:
+## Secrets
 
-- `output.csv` has one row per row in `dataset/messages.csv`.
-- `output.csv` has the exact required columns in the exact required order.
-- Your runnable code and setup instructions are included in `code.zip`.
+Keys are read from the environment only, via `ANTHROPIC_API_KEY`. A `.env` file in the repo root
+or in `code/` is loaded if present; both are gitignored, and `.env.example` is a placeholder with
+no key in it. No key is written to disk, logged, or included in any cache key — and **none is
+needed to run this submission.**

@@ -8,3 +8,6 @@
 # Python
 __pycache__/
 *.pyc
+
+# Built submission artifact -- regenerate, do not track (11 MB).
+code.zip
