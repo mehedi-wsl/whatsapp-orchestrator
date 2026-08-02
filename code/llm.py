@@ -166,6 +166,10 @@ class _Cache:
     paid for. Read once at import.
     """
 
+    # Reserved entry recording which model identities wrote into this file.
+    # Real keys are 32 hex characters, so a name in this shape cannot collide.
+    _IDENTITIES = "__identities__"
+
     def __init__(self, path: str):
         self.path = path
         self.data: Dict[str, str] = {}
@@ -178,6 +182,13 @@ class _Cache:
                     self.data = json.load(fh)
             except (json.JSONDecodeError, OSError):
                 self.data = {}
+        raw = self.data.get(self._IDENTITIES, "")
+        self.identities = [s for s in raw.split("\x00") if s]
+
+    def _key_for(self, identity: str, prompt: str, grammar: str,
+                 max_tokens: int) -> str:
+        blob = f"{identity}\x00{max_tokens}\x00{grammar}\x00{prompt}"
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:32]
 
     def key(self, prompt: str, grammar: str, max_tokens: int) -> str:
         # The identity of the actual weights must be in the key. `MODEL` is the
@@ -185,8 +196,28 @@ class _Cache:
         # is loaded, so keying on it alone made a 3B answer indistinguishable
         # from a 7B one -- swapping models silently served the old model's
         # cached verdicts and made a comparison between them meaningless.
-        blob = f"{served_model()}\x00{max_tokens}\x00{grammar}\x00{prompt}"
-        return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:32]
+        return self._key_for(served_model(), prompt, grammar, max_tokens)
+
+    def replay(self, prompt: str, grammar: str, max_tokens: int) -> Optional[str]:
+        """Look up an answer under whichever identity actually recorded it.
+
+        Keying on model identity is right while a system is being *built* --
+        it is what stops a 3B verdict from masquerading as a 7B one. It is
+        wrong when the goal is to reproduce a finished run on a machine with no
+        key and no server, because there the current identity is not the one
+        that filled the file and every lookup misses.
+
+        So the file remembers who wrote it, and replay consults those names in
+        turn. Nothing is guessed: an identity is only tried if it is recorded
+        here, and the first recorded hit wins.
+        """
+        for ident in self.identities:
+            v = self.data.get(self._key_for(ident, prompt, grammar, max_tokens))
+            if v is not None:
+                self.hits += 1
+                return v
+        self.misses += 1
+        return None
 
     def get(self, k: str) -> Optional[str]:
         v = self.data.get(k)
@@ -198,6 +229,10 @@ class _Cache:
 
     def put(self, k: str, v: str) -> None:
         self.data[k] = v
+        ident = served_model()
+        if ident not in self.identities:
+            self.identities.append(ident)
+            self.data[self._IDENTITIES] = "\x00".join(self.identities)
         self.dirty = True
 
     def flush(self) -> None:
@@ -243,7 +278,9 @@ def complete(prompt: str, grammar: str = "", max_tokens: int = 64,
     if hit is not None:
         return hit
     if CACHE_ONLY:
-        return None
+        # Frozen: no backend may be contacted, so fall back to whichever
+        # identity recorded this answer rather than reporting a miss.
+        return CACHE.replay(prompt, grammar + "\x00" + prefill, max_tokens)
 
     if backend() == "anthropic":
         out = _anthropic(prompt, max_tokens, prefill)
