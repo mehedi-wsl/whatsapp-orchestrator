@@ -1,0 +1,169 @@
+{
+  "_doc": [
+    "Label specification for the Message Notification Router.",
+    "",
+    "Every routing decision is made from labels defined in this file and nowhere",
+    "else. A label is a named, written-down predicate about one message. This",
+    "file IS the specification: if a label's meaning needs to change, it changes",
+    "here, not inside a regex in the decision code.",
+    "",
+    "Two kinds of label:",
+    "  semantic   - judged by reading the message. Extracted by a local model,",
+    "               one grammar-constrained call per message, temperature 0,",
+    "               answers cached in label_store.json so a run reproduces",
+    "               exactly with no model present.",
+    "  structural - read directly from the dataset CSVs. No judgement involved,",
+    "               and nothing in the message text can influence them.",
+    "",
+    "The `question` field is the exact wording put to the model. It is the",
+    "label's definition, not a hint -- changing it changes what the label means",
+    "and invalidates the cached answers for it (the cache key includes it)."
+  ],
+  "version": 7,
+  "semantic": [
+    {
+      "id": "asks_for_credential",
+      "question": "Does this message ask the reader to provide a one-time password, PIN, card number, CVV, or account password?",
+      "yes_when": "the message actually requests those details from the reader",
+      "no_when": "it only mentions them, for example by warning that they are never asked for, or stating that none are required"
+    },
+    {
+      "id": "instructs_forwarding",
+      "question": "Does this message instruct the reader to forward, share, or re-send it to other people?",
+      "yes_when": "the reader is told to pass the message on",
+      "no_when": "the message merely mentions sharing, blessings, or wishes without telling the reader to relay it"
+    },
+    {
+      "id": "targets_the_router",
+      "question": "Does this message contain instructions addressed to an automated system or assistant rather than to a person?",
+      "yes_when": "it tries to tell software how to treat the message, for example how to classify or prioritise it",
+      "no_when": "everything in it is addressed to a human reader"
+    },
+    {
+      "id": "requests_response",
+      "question": "Is the sender waiting on the recipient?",
+      "yes_when": "the message asks a question, requests a call, or needs a decision from the recipient",
+      "no_when": "it only reports news or shares an update, or it explicitly defers the exchange -- a closing tag question such as 'okay?' on a message that says to talk later is not a request"
+    },
+    {
+      "id": "states_deadline",
+      "question": "Does this message state a specific time by which the recipient must do something?",
+      "yes_when": "there is a stated cutoff, appointment time, or window the recipient has to meet",
+      "no_when": "any times mentioned are informational and nothing is required of the recipient by then"
+    },
+    {
+      "id": "is_advertising",
+      "question": "Is this message selling or promoting something?",
+      "yes_when": "it advertises a product, service, offer, or item for sale, including a private person selling an item",
+      "no_when": "no purchase or commercial offer is being put to the reader"
+    },
+    {
+      "id": "is_greeting",
+      "question": "Is this message only a wish, blessing, or pleasantry?",
+      "yes_when": "there is nothing for the reader to act on beyond the sentiment",
+      "no_when": "it carries information or a request alongside any greeting"
+    },
+    {
+      "id": "concerns_recipients_account",
+      "question": "Is a company telling the recipient about something of theirs -- their delivery, order, booking, account, subscription, or policy?",
+      "yes_when": "it reports on, updates, or advises about something the recipient already has with that company, including a delivery or shipment in progress",
+      "no_when": "it is unsolicited outreach about something the recipient does not already have"
+    },
+    {
+      "id": "involves_payment",
+      "question": "Does this message concern money that must actually move?",
+      "yes_when": "there is a bill, invoice, fee, or amount owed by or to the recipient",
+      "no_when": "prices are mentioned only as part of an advertisement, or no payment is due"
+    },
+    {
+      "id": "is_scheduled_event",
+      "question": "Is this message primarily about an occasion the recipient is expected to attend, track, or prepare for?",
+      "yes_when": "the message exists in order to announce, change, or remind about a meeting, class, trip, appointment, or similar occasion",
+      "no_when": "a time or day is mentioned only in passing, or the message is primarily about something else such as selling an item, asking a favour, or reporting news"
+    },
+    {
+      "id": "conveys_urgency",
+      "question": "Does this message need attention within the next few hours?",
+      "yes_when": "something is happening imminently and the recipient will lose out or block someone by not seeing it",
+      "no_when": "it can wait until the recipient next checks their messages"
+    }
+  ],
+  "structural": [
+    {
+      "id": "sender_verified",
+      "source": "business_accounts.verified"
+    },
+    {
+      "id": "sender_domain_mismatch",
+      "source": "official_domain vs domain_used_by_sender"
+    },
+    {
+      "id": "sender_account_age_days",
+      "source": "business_accounts.account_age_days"
+    },
+    {
+      "id": "sender_domain_age_days",
+      "source": "business_accounts.domain_used_by_sender_age_days"
+    },
+    {
+      "id": "sender_reports_30d",
+      "source": "business_accounts.user_reports_30d"
+    },
+    {
+      "id": "is_business",
+      "source": "messages.business_id is set"
+    },
+    {
+      "id": "conversation_type",
+      "source": "messages.conversation_type"
+    },
+    {
+      "id": "media_kind",
+      "source": "messages.media_type"
+    },
+    {
+      "id": "group_muted",
+      "source": "group_members.muted"
+    },
+    {
+      "id": "group_type",
+      "source": "groups.group_type"
+    },
+    {
+      "id": "user_opted_out",
+      "source": "user_business_history opt-out flag"
+    },
+    {
+      "id": "precedent_label",
+      "source": "engagement signature over (user, sender) history"
+    },
+    {
+      "id": "precedent_unanimous",
+      "source": "all precedent rows agree"
+    },
+    {
+      "id": "precedent_n",
+      "source": "count of precedent rows"
+    },
+    {
+      "id": "sender_structurally_trusted",
+      "source": "verified AND no domain mismatch AND account+domain age >= 365d AND reports_30d <= 30"
+    },
+    {
+      "id": "media_precedent_label",
+      "source": "engagement signature over prior messages carrying the same media_id"
+    },
+    {
+      "id": "text_matches_injection_pattern",
+      "source": "lexical detector; deterministic, cannot be argued out of firing"
+    },
+    {
+      "id": "text_matches_credential_pattern",
+      "source": "lexical detector"
+    },
+    {
+      "id": "text_matches_chain_pattern",
+      "source": "lexical detector"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+
+# Secrets -- never commit. AGENTS.md rule 4 and README both require keys to be
+# read from the environment only.
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
