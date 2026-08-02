@@ -134,8 +134,9 @@ Confidence is banded by action and scaled by the strength of the matching rule, 
 message from the same relationship; 102 of 110 rows carry one and 8 correctly emit `none`
 (gold emits `none` on 6.7%).
 
-`ARCHITECTURE.md` is the full design record, including §4 — the rules that sounded right and were
-disproved by the data.
+**`DECISIONS.md`** is the short version of the above: what we prioritised, what each choice cost,
+and the ideas that were tried and thrown away. `ARCHITECTURE.md` is the full design record,
+including §4 — the rules that sounded right and were disproved by the data.
 
 ---
 
@@ -143,7 +144,8 @@ disproved by the data.
 
 ```
 README.md              you are here
-ARCHITECTURE.md        design record, incl. what was tried and rejected
+DECISIONS.md           short read: what was prioritised and why, with the trade-offs
+ARCHITECTURE.md        full design record, incl. what was tried and rejected
 output.csv             the submitted predictions (110 rows)
 code/
   main.py              entry point; writes output.csv
