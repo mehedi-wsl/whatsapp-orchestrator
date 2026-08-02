@@ -14,30 +14,29 @@ The short version of why this system is built the way it is.
 
 ---
 
-## The six decisions
+## The five decisions
 
-### 1. Retrieve, don't classify
+### 1. Let past behaviour decide
 
-The 412 historical messages have only **5 distinct reaction patterns** between them. That's a
-generated label channel, not real human behaviour — so every historical message effectively
-carries a routing label.
+We don't judge a message on its own merits. We look at how this user has handled this sender
+before, and follow it.
 
-So instead of classifying each new message cold, we find the most similar past message and read
-its label. Much easier, and it's also exactly what `evidence_message_ids` is scored on.
+That works because the history is already labelled. The 412 past messages have only **5 distinct
+reaction patterns** between them — that isn't real human behaviour, it's a label channel — so
+every past message effectively carries a routing decision we can read off.
 
-### 2. Match on the relationship, not the sender
-
-The same sender can be worth interrupting for one person and worth muting for another. We
-measured this: sender reputation gives a conflicting answer for **81 of 110** messages. The
-`(user, sender)` pair gives a unanimous answer for **79 of 110**.
-
-So we match on the pair. Sender reputation is only ever a hint, never a decision.
+The thing to match on is the **pair**, not the sender. Sender reputation on its own gives a
+conflicting answer for **81 of 110** messages; the user-and-sender pair gives a unanimous answer
+for **79 of 110**. So reputation is only ever a hint.
 
 Two voice notes in the data come from the same sender and get opposite actions, because they go
 to different people. And one bank message is completely legitimate — verified, 974 days old,
 correct domain — and its recipient mutes it every time. Legitimate isn't the same as important.
 
-### 3. Safety runs first, and history can't override it
+This also gives us `evidence_message_ids` for free: the past message we matched on *is* the
+evidence.
+
+### 2. Safety runs first, and history can't override it
 
 If someone habitually opens messages from a scammer, they should still not be interrupted by one.
 So the safety check runs before anything personalised.
@@ -49,7 +48,7 @@ of them impersonation (`paytm.com` → `paytm-kyc.in`, and 20 more).
 
 Where a model is involved, it can *add* a mute but never remove one.
 
-### 4. Rules live in JSON, not in code
+### 3. Rules live in JSON, not in code
 
 The routing logic is two files anyone can read: `labels.json` (11 yes/no questions about a
 message) and `rules.json` (the ordered rules). The code just evaluates them.
@@ -61,13 +60,13 @@ solved rows, and it dropped to **70%**. The whole 23-point lead was memorising t
 So we took the lower honest number. It's about 10 points worse on the rows we can see, and a
 truer picture of the rows we can't.
 
-### 5. When unsure, `digest`
+### 4. When unsure, `digest`
 
 A wrong `notify` is an annoying interruption. A wrong `mute` loses something the user needed.
 `digest` is the only one that's recoverable either way — so anything uncertain goes there, and
 nothing ever defaults to `notify`.
 
-### 6. Images and voice notes are different problems
+### 5. Images and voice notes are different problems
 
 Every image has a caption; no voice note has any text at all. So images go through the normal
 text path using their caption, and voice notes are routed purely on relationship history, which
