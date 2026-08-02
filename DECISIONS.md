@@ -62,9 +62,11 @@ truer picture of the rows we can't.
 
 ### 4. When unsure, `digest`
 
-A wrong `notify` is an annoying interruption. A wrong `mute` loses something the user needed.
-`digest` is the only one that's recoverable either way — so anything uncertain goes there, and
-nothing ever defaults to `notify`.
+Getting `notify` wrong annoys the user. Getting `mute` wrong is worse — they never see a message
+that mattered.
+
+`digest` is the safe middle, because the user still gets the message, just later. So anything
+we're not confident about goes there. Nothing ever falls back to `notify`.
 
 ### 5. Images and voice notes are different problems
 
